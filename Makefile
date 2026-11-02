@@ -1,10 +1,3 @@
-﻿# 机床工位边缘安全采集网关
-#
-# 交叉编译（默认）：make
-# 指定编译器：      make CC=/opt/gcc-arm/bin/arm-linux-gnueabihf-gcc
-# 带 MQTT：         make MQTT=1 PAHO_INC=... PAHO_LIB=...
-# PC 上试跑：       make host
-
 CC      ?= arm-linux-gnueabihf-gcc
 TARGET  := gateway
 
@@ -43,4 +36,3 @@ clean:
 	rm -f $(TARGET) gateway_host
 
 .PHONY: all host clean
-

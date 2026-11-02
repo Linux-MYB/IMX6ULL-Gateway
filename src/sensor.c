@@ -1,11 +1,3 @@
-﻿/*
- * sensor.c —— 环境感知：DS18B20 温度 + MQ-2 烟雾
- *
- * 温度：优先用内核驱动 /dev/ds18b20_misc（read 一个 short，单位 0.0625℃）；
- *       打不开就退回到 w1 总线 sysfs（/sys/bus/w1/devices/28-xxxx/w1_slave）。
- * 烟雾：MQ-2 的 AO 接到 ADC，通过 IIO sysfs 读原始值，再按 scale 换算成 mV，
- *       并用标定系数折算成浓度估计值。
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,7 +8,6 @@
 
 #include "gw.h"
 
-/* MQ-2 标定：洁净空气约 400mV，电压每升高 1mV 约等于 2ppm（按自家标定改） */
 #define SMOKE_MV_BASE   400
 #define SMOKE_PPM_PER_MV 2
 
@@ -125,9 +116,8 @@ int sensor_read_smoke(int *raw, int *mv)
     }
     fclose(fp);
 
-    /* IIO 的 scale 是“每个 LSB 多少 mV” */
     {
-        float scale = 0.805f;        /* 3.3V / 4096 的默认值，读到就覆盖 */
+        float scale = 0.805f;
         fp = fopen(GW_ADC_SCALE, "r");
         if (fp) {
             if (fscanf(fp, "%f", &scale) != 1) {
@@ -155,7 +145,6 @@ void sensor_close(void)
     }
 }
 
-/* 采集线程：每秒读一次温度与烟雾 */
 void *th_env(void *arg)
 {
     struct gw_ctx *ctx = (struct gw_ctx *)arg;
@@ -172,7 +161,7 @@ void *th_env(void *arg)
         if (sensor_read_temp(&temp) == 0) {
             m.u.env.temp = temp;
         } else {
-            m.u.env.temp = -99.0f;          /* 标记读数失败 */
+            m.u.env.temp = -99.0f;
         }
 
         if (sensor_read_smoke(&raw, &mv) == 0) {
@@ -187,4 +176,3 @@ void *th_env(void *arg)
     sensor_close();
     return NULL;
 }
-

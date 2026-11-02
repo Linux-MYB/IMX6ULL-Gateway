@@ -1,12 +1,3 @@
-/*
- * modbus.c —— Modbus-RTU 主站（RS485 轮询 PLC）
- *
- * 只实现网关用得到的两个功能码：
- *   0x03 读保持寄存器   —— 轮询 4 个工艺寄存器
- *   0x06 写单个寄存器   —— 下发紧急停机报文
- *
- * 串口用 termios raw 模式 + select 超时读，失败重传 3 次。
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -75,15 +66,15 @@ int modbus_open(const char *dev, int baud, int slave)
         return -1;
     }
 
-    cfmakeraw(&tio);                 /* 关掉回显、行缓冲、特殊字符 */
+    cfmakeraw(&tio);
     speed_to_baud(baud, &sp);
     cfsetispeed(&tio, sp);
     cfsetospeed(&tio, sp);
 
     tio.c_cflag |= (CLOCAL | CREAD);
     tio.c_cflag &= ~CRTSCTS;
-    tio.c_cflag &= ~CSTOPB;          /* 1 位停止位 */
-    tio.c_cflag &= ~PARENB;          /* 无校验 */
+    tio.c_cflag &= ~CSTOPB;
+    tio.c_cflag &= ~PARENB;
     tio.c_cflag &= ~CSIZE;
     tio.c_cflag |= CS8;
 
@@ -105,7 +96,6 @@ int modbus_open(const char *dev, int baud, int slave)
     return 0;
 }
 
-/* 收满 need 字节或超时；返回实际字节数 */
 static int read_exact(unsigned char *buf, int need, int timeout_ms)
 {
     int got = 0;
@@ -129,7 +119,7 @@ static int read_exact(unsigned char *buf, int need, int timeout_ms)
             return got;
         }
         if (0 == rc) {
-            break;                    /* 超时 */
+            break;
         }
 
         rc = (int)read(g_fd, buf + got, (size_t)(need - got));
@@ -140,7 +130,7 @@ static int read_exact(unsigned char *buf, int need, int timeout_ms)
             break;
         }
         got += rc;
-        remain = 60;                  /* 首字节到了，给帧内其余字节 60ms */
+        remain = 60;
     }
 
     return got;
@@ -163,7 +153,7 @@ static int tx_and_rx(const unsigned char *tx, int txlen,
 
         n = read_exact(rx, rxneed, MB_TIMEOUT_MS);
         if (n == rxneed) {
-            return 0;                 /* 收齐了，交给上层校验 */
+            return 0;
         }
 
         printf("[modbus] 第 %d 次超时（收到 %d / %d 字节）\n", attempt + 1, n, rxneed);
@@ -196,7 +186,7 @@ int modbus_read_regs(unsigned short start, unsigned short count, unsigned short 
     tx[6] = (unsigned char)(crc & 0xFF);
     tx[7] = (unsigned char)(crc >> 8);
 
-    need = 5 + 2 * count;             /* 地址 + 功能码 + 字节数 + 数据 + CRC */
+    need = 5 + 2 * count;
 
     ret = tx_and_rx(tx, 8, rx, need);
     if (ret < 0) {
@@ -204,7 +194,6 @@ int modbus_read_regs(unsigned short start, unsigned short count, unsigned short 
         return -1;
     }
 
-    /* 校验 */
     crc = crc16(rx, need - 2);
     if ((unsigned char)(crc & 0xFF) != rx[need - 2] ||
         (unsigned char)(crc >> 8)   != rx[need - 1]) {
@@ -280,7 +269,6 @@ void modbus_close(void)
     }
 }
 
-/* 采集线程：定时轮询 PLC 的 4 个工艺寄存器 */
 void *th_modbus(void *arg)
 {
     struct gw_ctx *ctx = (struct gw_ctx *)arg;

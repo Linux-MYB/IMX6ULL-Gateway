@@ -1,11 +1,3 @@
-/*
- * store.c —— SQLite 本地存储
- *
- * 两张逻辑：环形表 + 待上传标记
- *   - frames 表按 id 自增，超过 GW_RING_MAX 条就从最旧的开始删，防止把板子存储写满
- *   - uploaded 字段标记是否已上报；断网时新数据 uploaded=0，
- *     网络恢复后按 ts 升序取出补传，这就是“先落本地、恢复后有序补传”
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -96,7 +88,6 @@ int store_open(const char *path)
     return 0;
 }
 
-/* 环形表：只保留最近 GW_RING_MAX 条 */
 static void ring_trim(void)
 {
     char sql[160];
@@ -219,7 +210,6 @@ void store_close(void)
     }
 }
 
-/* 存储线程：收到完整帧就落库（上传与否由 upload 线程回填标记） */
 void *th_store(void *arg)
 {
     struct gw_ctx *ctx = (struct gw_ctx *)arg;

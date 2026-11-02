@@ -27,10 +27,10 @@ extern int framebuffer_draw_hor_line(fb_t *pfb, int x, int y, int width, unsigne
 extern int framebuffer_draw_ver_line(fb_t *pfb, int x, int y, int height, unsigned char tmpr, unsigned char tmpg, unsigned char tmpb);
 extern int framebuffer_fill_dict(fb_t *pfb, int x, int y, int width, int height, unsigned char tmpr, unsigned char tmpg, unsigned char tmpb);
 extern int framebuffer_clearscreen(fb_t *pfb, unsigned char tmpr, unsigned char tmpg, unsigned char tmpb);
-extern int framebuffer_draw_ascii(fb_t *pfb, int x, int y, unsigned char ch, 
+extern int framebuffer_draw_ascii(fb_t *pfb, int x, int y, unsigned char ch,
                                         unsigned char fr, unsigned char fg, unsigned char fb,
                                         unsigned char br, unsigned char bg, unsigned char bb);
-extern int framebuffer_draw_str(fb_t *pfb, int x, int y, char *pstr, 
+extern int framebuffer_draw_str(fb_t *pfb, int x, int y, char *pstr,
                                     unsigned char fr, unsigned char fg, unsigned char fb,
                                     unsigned char br, unsigned char bg, unsigned char bb);
 #endif

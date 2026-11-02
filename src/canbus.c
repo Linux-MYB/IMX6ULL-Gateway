@@ -1,13 +1,3 @@
-/*
- * canbus.c —— SocketCAN 接收 STM32 检测节点上报
- *
- * 三个报文 ID：
- *   0x100 人体状态   data[0]=1 表示检测到人员
- *   0x102 置信度     data[0]=0~100
- *   0x103 节点状态   data[0]=0 正常 / 1 故障
- *
- * 总线掉线（read 报 ENETDOWN / 设备消失）时自动重连，配合上层“链路状态”显示。
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,7 +44,6 @@ static int can_try_open(void)
         return -1;
     }
 
-    /* 只收这三个 ID，其余报文由内核过滤掉，省 CPU */
     {
         struct can_filter filters[3];
         filters[0].can_id = GW_CAN_ID_PERSON;
@@ -85,12 +74,6 @@ int can_open(const char *ifname)
     return 0;
 }
 
-/*
- * 读一帧并解析。返回：
- *   1  收到三个 ID 之一，out 已更新
- *   0  超时（没有报文）
- *  -1  出错（内部会尝试重连）
- */
 int can_read_msg(struct gw_can *out, int timeout_ms)
 {
     struct pollfd pfd;
@@ -120,7 +103,7 @@ int can_read_msg(struct gw_can *out, int timeout_ms)
         return -1;
     }
     if (0 == rc) {
-        return 0;                    /* 超时 */
+        return 0;
     }
 
     memset(&frame, 0, sizeof(frame));
@@ -133,7 +116,7 @@ int can_read_msg(struct gw_can *out, int timeout_ms)
     }
 
     if (frame.can_id & CAN_ERR_FLAG) {
-        return 0;                    /* 总线错误帧，忽略 */
+        return 0;
     }
 
     if (frame.can_id == GW_CAN_ID_PERSON) {
@@ -163,7 +146,6 @@ void can_close(void)
     }
 }
 
-/* 采集线程：阻塞收 CAN，收到就用邮箱交给判定线程 */
 void *th_can(void *arg)
 {
     struct gw_ctx *ctx = (struct gw_ctx *)arg;

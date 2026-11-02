@@ -62,7 +62,7 @@ int framebuffer_clearscreen(fb_t *pfb, unsigned char tmpr, unsigned char tmpg, u
     return 0;
 }
 
-int framebuffer_draw_ascii(fb_t *pfb, int x, int y, unsigned char ch, 
+int framebuffer_draw_ascii(fb_t *pfb, int x, int y, unsigned char ch,
                                     unsigned char fr, unsigned char fg, unsigned char fb,
                                     unsigned char br, unsigned char bg, unsigned char bb)
 {
@@ -78,7 +78,7 @@ int framebuffer_draw_ascii(fb_t *pfb, int x, int y, unsigned char ch,
             {
                 framebuffer_drawpixel(pfb, x+i, y+j, fr, fg, fb);
             }
-            else 
+            else
             {
                 framebuffer_drawpixel(pfb, x+i, y+j, br, bg, bb);
             }
@@ -88,7 +88,7 @@ int framebuffer_draw_ascii(fb_t *pfb, int x, int y, unsigned char ch,
     return 0;
 }
 
-int framebuffer_draw_str(fb_t *pfb, int x, int y, char *pstr, 
+int framebuffer_draw_str(fb_t *pfb, int x, int y, char *pstr,
                                     unsigned char fr, unsigned char fg, unsigned char fb,
                                     unsigned char br, unsigned char bg, unsigned char bb)
 {
@@ -125,17 +125,15 @@ fb_t *framebuff_init(const char *pdevname)
         return NULL;
     }
 
-    //1.打开设备
     pfb->fd = open(pdevname, O_RDWR);
-    if (-1 == pfb->fd) 
+    if (-1 == pfb->fd)
     {
         perror("fail to open");
         return NULL;
     }
 
-    //2.获得屏幕分辨率 
     ret = ioctl(pfb->fd, FBIOGET_VSCREENINFO, &pfb->vscreen);
-    if (-1 == ret) 
+    if (-1 == ret)
     {
         perror("fail to ioctl");
         return NULL;
@@ -148,7 +146,6 @@ fb_t *framebuff_init(const char *pdevname)
     printf("==========================================\n");
 #endif
 
-    //3.申请显存空间
     pfb->prgb = mmap(NULL, pfb->vscreen.xres_virtual * pfb->vscreen.yres_virtual * pfb->vscreen.bits_per_pixel / 8,
                PROT_READ | PROT_WRITE, MAP_SHARED, pfb->fd, 0);
     if (NULL == pfb->prgb)

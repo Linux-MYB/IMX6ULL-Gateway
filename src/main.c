@@ -1,12 +1,3 @@
-﻿/*
- * main.c —— 边缘网关主程序
- *
- *   modbus ┐
- *   can    ├─→ judge ─→ store(落库) / upload(上云) / ui(显示)
- *   env    ┘
- *
- * 线程之间只走邮箱队列；每个线程自己持有设备句柄，没有共享可变全局。
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,7 +25,6 @@ static long now_ms(void)
     return (long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
-/* ---------------- 判定线程 ---------------- */
 void *th_judge(void *arg)
 {
     struct gw_ctx *ctx = (struct gw_ctx *)arg;
@@ -84,7 +74,6 @@ void *th_judge(void *arg)
         nowm = now_ms();
         now_s = (long)time(NULL);
 
-        /* 链路超时：PLC 3 秒没应答、CAN 3 秒没报文，就标记为断开 */
         if (nowm - t_plc > 3000) {
             cur.plc_ok = 0;
         }
@@ -105,7 +94,6 @@ void *th_judge(void *arg)
         cur.ts = now_s;
         cur.level = alarm_judge(&cur);
 
-        /* 一级告警：给 PLC 下发紧急停机报文（5 秒内只发一次，避免刷屏） */
         if (1 == cur.level && cur.plc_ok && (nowm - last_stop > 5000)) {
             last_stop = nowm;
             if (modbus_write_reg(GW_PLC_REG_STOP, 1) == 0) {
@@ -115,7 +103,6 @@ void *th_judge(void *arg)
             }
         }
 
-        /* 组帧分发 */
         memset(&m, 0, sizeof(m));
         m.type = GW_MSG_FRAME;
         m.ts = cur.ts;
@@ -171,7 +158,6 @@ int main(void)
     alarm_init();
     sensor_open();
 
-    /* 设备打不开只告警不退出：方便先在板子上跑界面和逻辑 */
     if (modbus_open(serial_dev, GW_SERIAL_BAUD, GW_PLC_SLAVE) != 0) {
         printf("警告：PLC 串口打不开，plc_ok 会一直是 0\n");
     }
@@ -188,7 +174,6 @@ int main(void)
         return 1;
     }
 
-    /* 先起消费者，再起生产者，避免消息丢在没人收的队列里 */
     gw_mbox_add(mbox, "judge",  th_judge);
     gw_mbox_add(mbox, "store",  th_store);
     gw_mbox_add(mbox, "upload", th_upload);
@@ -204,8 +189,8 @@ int main(void)
     }
 
     printf("\n准备退出：通知各线程...\n");
-    gw_mbox_stop(mbox);          /* 置 g_run=0 并唤醒所有队列 */
-    gw_mbox_destroy(mbox);       /* join 全部线程 */
+    gw_mbox_stop(mbox);
+    gw_mbox_destroy(mbox);
 
     modbus_close();
     can_close();
@@ -214,4 +199,3 @@ int main(void)
     printf("网关已退出\n");
     return 0;
 }
-

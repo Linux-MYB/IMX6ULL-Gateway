@@ -1,13 +1,3 @@
-﻿/*
- * alarm.c —— 两级联锁判定 + 蜂鸣器
- *
- * 一级：主轴在转（PLC 寄存器 0 非 0）且 AI 检测到人员闯入
- *       → judge 线程收到一级后调用 modbus_write_reg 下发停机报文
- * 二级：温度超阈 或 烟雾超阈
- *       → 本地声光（蜂鸣器 + LCD）
- *
- * 阈值支持云端下发：upload 线程收到消息后调 alarm_set_thresholds()。
- */
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -17,7 +7,7 @@
 #include "gw.h"
 
 static int  g_beep_fd = -1;
-static int  g_beep_on = -1;                  /* 当前状态，避免重复写 */
+static int  g_beep_on = -1;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t g_th_lock = PTHREAD_MUTEX_INITIALIZER;
 static float g_temp_th  = GW_TEMP_TH;
@@ -107,17 +97,14 @@ int alarm_judge(const struct gw_frame *f)
     temp_th  = alarm_temp_th();
     smoke_th = alarm_smoke_th();
 
-    /* 寄存器 0 约定：0 停机、非 0 表示主轴在转 */
     if (f->reg[0] != 0) {
         spindle_run = 1;
     }
 
-    /* 一级：人员闯入且设备在运转，才需要停机 */
     if (f->can_ok && f->person && spindle_run) {
         level = 1;
     }
 
-    /* 二级：火情风险，比闯入更严重，等级取大 */
     if (f->temp >= temp_th || f->smoke_raw >= smoke_th) {
         level = 2;
     }
@@ -141,4 +128,3 @@ void alarm_stop(void)
         g_beep_on = -1;
     }
 }
-

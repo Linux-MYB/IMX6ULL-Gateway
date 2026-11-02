@@ -1,10 +1,3 @@
-﻿/*
- * mailbox.c —— 线程间邮箱：每个线程一个队列，按名字投递
- *
- * 与课程里的链表版相比，这里用固定容量的环形队列 + 互斥锁 + 条件变量：
- *   - 收消息不再靠 usleep 轮询
- *   - 队列满时丢最旧的一帧，保证采集线程不被拖死
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,8 +6,8 @@
 
 #include "gw.h"
 
-#define GW_QCAP      16          /* 每个线程队列容量 */
-#define GW_MAX_TH    8           /* 最多注册 8 个线程 */
+#define GW_QCAP      16
+#define GW_MAX_TH    8
 
 struct gw_queue {
     struct gw_msg buf[GW_QCAP];
@@ -27,7 +20,6 @@ struct gw_queue {
     pthread_cond_t  not_full;
 };
 
-/* 一个注册到邮箱里的线程 */
 struct th_node {
     char name[32];
     struct gw_ctx ctx;
@@ -48,8 +40,6 @@ struct gw_mbox {
 };
 
 volatile int g_run = 1;
-
-/* ---------------- 队列 ---------------- */
 
 static gw_queue_t *queue_new(void)
 {
@@ -84,7 +74,7 @@ static int queue_push(gw_queue_t *q, const struct gw_msg *m)
     }
 
     if (q->count == GW_QCAP) {
-        /* 队列满：丢最旧的一条，保留最新数据 */
+
         q->head = (q->head + 1) % GW_QCAP;
         q->count--;
     }
@@ -98,7 +88,6 @@ static int queue_push(gw_queue_t *q, const struct gw_msg *m)
     return 0;
 }
 
-/* 超时返回 -1，收到返回 0 */
 static int queue_pop(gw_queue_t *q, struct gw_msg *m, int timeout_ms)
 {
     struct timespec ts;
@@ -146,9 +135,6 @@ static void queue_close(gw_queue_t *q)
     pthread_cond_broadcast(&q->not_full);
     pthread_mutex_unlock(&q->lock);
 }
-
-/* ---------------- 线程节点 ---------------- */
-
 
 static void *thread_trampoline(void *arg)
 {
@@ -283,4 +269,3 @@ void gw_mbox_destroy(gw_mbox_t *mb)
     pthread_mutex_destroy(&mb->lock);
     free(mb);
 }
-

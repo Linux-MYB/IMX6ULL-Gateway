@@ -1,20 +1,7 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-plc_sim.py —— 用一对虚拟串口（pty）模拟 PLC 从站，没有真 PLC 也能联调。
+"""plc_sim.py —— 用虚拟串口（pty）模拟 PLC 从站。
 
-用法：
-    python3 plc_sim.py            # 打印网关要用的串口路径，例如 /dev/pts/5
-    # 另开一个终端：
-    GW_SERIAL=/dev/pts/5 ./gateway
-
-模拟的 4 个工艺寄存器：
-    reg0 主轴状态（0 停机 / 1 低速 / 2 高速）轮询会自动在 0/1/2 之间切换
-    reg1 故障码（一直是 0）
-    reg2 产量（每 10 秒 +1）
-    reg3 节拍（固定 37）
-
-收到 0x06 写寄存器（停机报文）会打印出来，并把主轴状态清 0。
+    python3 plc_sim.py
+    GW_SERIAL=/dev/pts/N ./gateway
 """
 import os
 import sys
@@ -23,7 +10,6 @@ import select
 import struct
 
 SLAVE = 1
-
 
 def crc16(data: bytes) -> int:
     crc = 0xFFFF
@@ -36,17 +22,15 @@ def crc16(data: bytes) -> int:
                 crc >>= 1
     return crc
 
-
 def build_response(addr, func, payload: bytes) -> bytes:
     body = bytes([addr, func]) + payload
     crc = crc16(body)
     return body + struct.pack("<H", crc)
 
-
 def main():
     master_fd, slave_fd = os.openpty()
     slave_path = os.ttyname(slave_fd)
-    # 关掉行缓冲/回显，按原始串口用
+
     import tty
     tty.setraw(master_fd)
     tty.setraw(slave_fd)
@@ -61,7 +45,7 @@ def main():
 
     buf = b""
     while True:
-        # 主轴状态随运行时间变化：0 → 1 → 2 → 0 ...
+
         elapsed = int(time.time() - start_time)
         regs[0] = (elapsed // 10) % 3
         regs[2] = elapsed // 10
@@ -115,7 +99,6 @@ def main():
             print("[sim] 未支持的功能码 0x%02X" % func)
 
         buf = buf[8:]
-
 
 if __name__ == "__main__":
     try:

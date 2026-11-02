@@ -1,12 +1,3 @@
-﻿/*
- * upload.c —— MQTT 上报 + 阈值订阅
- *
- * 编译时加 -DGW_HAVE_MQTT=1 并链接 paho（-lpaho-mqtt3c）才启用；
- * 不加时这个线程只是空转，其余模块照常工作，方便先跑通采集和显示。
- *
- * 断网补传：所有帧都已经由 store 线程落库（uploaded=0），
- * 这里一旦连上 broker，就先按 ts 升序把积压的帧补发完，再发实时帧。
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,7 +13,6 @@ static MQTTClient g_client = NULL;
 static volatile int g_online = 0;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 
-/* 从 payload 里粗略解析阈值：兼容 {"temp_th":50,...} 和 "50,800" 两种写法 */
 static void parse_threshold(const char *payload, int len)
 {
     char buf[256];
@@ -162,7 +152,6 @@ static int publish_frame(const struct gw_frame *f)
     return 0;
 }
 
-/* 把积压的帧按时间顺序补发 */
 static void flush_pending(void)
 {
     struct gw_frame batch[16];
@@ -176,7 +165,7 @@ static void flush_pending(void)
         }
         for (i = 0; i < got; i++) {
             if (publish_frame(&batch[i]) != 0) {
-                return;                    /* 又断了，下次继续 */
+                return;
             }
             store_mark_uploaded(ids[i]);
         }
@@ -191,17 +180,15 @@ int upload_online(void)
     return g_online;
 }
 
-#else  /* 没编 MQTT */
+#else
 
 int upload_online(void)
 {
     return 0;
 }
 
-
 #endif
 
-/* 上传线程：保持连接、补传积压、发实时帧 */
 void *th_upload(void *arg)
 {
     struct gw_ctx *ctx = (struct gw_ctx *)arg;
@@ -229,7 +216,7 @@ void *th_upload(void *arg)
                 last_try = time(NULL);
                 mqtt_try_connect();
                 if (upload_online()) {
-                    flush_pending();       /* 连上先补历史数据 */
+                    flush_pending();
                 }
             }
             continue;
@@ -256,6 +243,3 @@ void *th_upload(void *arg)
 
     return NULL;
 }
-
-
-
